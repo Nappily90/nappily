@@ -1,6 +1,8 @@
 /**
  * netlify/functions/search-deals.js
- * Real-time nappy price search using Claude with web search.
+ * ─────────────────────────────────────────────────────────────
+ * Returns best nappy deals by querying Claude for price knowledge
+ * with a strict JSON-only instruction. Falls back to search URLs.
  */
 
 const AMAZON_TAG     = 'nappily26-21';
@@ -44,26 +46,28 @@ function searchUrl(retailer, brand, size) {
   return `https://www.google.co.uk/search?q=${q}`;
 }
 
-function fallback(brand, size, reason) {
-  console.log('Using fallback because:', reason);
+function buildFallback(brand, size) {
+  console.log('Using search URL fallback');
   return [
     {
-      retailer: 'Amazon',
-      pack: `${brand} Size ${size}`,
-      size: `Size ${size}`,
-      count: 96,
-      total: 24.99,
-      pricePerNappy: 0.26,
-      url: addAffiliateTag(searchUrl('Amazon', brand, size), 'Amazon'),
+      retailer:      'Amazon',
+      pack:          `${brand} nappies size ${size}`,
+      size:          `Size ${size}`,
+      count:         null,
+      total:         null,
+      pricePerNappy: null,
+      url:           addAffiliateTag(searchUrl('Amazon', brand, size), 'Amazon'),
+      isSearchLink:  true,
     },
     {
-      retailer: 'Boots',
-      pack: `${brand} Size ${size}`,
-      size: `Size ${size}`,
-      count: 62,
-      total: 18.50,
-      pricePerNappy: 0.298,
-      url: addAffiliateTag(searchUrl('Boots', brand, size), 'Boots'),
+      retailer:      'Boots',
+      pack:          `${brand} nappies size ${size}`,
+      size:          `Size ${size}`,
+      count:         null,
+      total:         null,
+      pricePerNappy: null,
+      url:           addAffiliateTag(searchUrl('Boots', brand, size), 'Boots'),
+      isSearchLink:  true,
     },
   ];
 }
@@ -88,17 +92,16 @@ export const handler = async (event) => {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.error('ANTHROPIC_API_KEY is not set');
+    console.error('ANTHROPIC_API_KEY not set');
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deals: fallback(brand, size, 'no API key'), source: 'fallback' }),
+      body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
     };
   }
 
-  console.log('API key found, calling Claude...');
-
   try {
+    // Use claude-sonnet which has better instruction following
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -108,88 +111,64 @@ export const handler = async (event) => {
         'anthropic-beta':    'web-search-2025-03-05',
       },
       body: JSON.stringify({
-        model:      'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
+        model:      'claude-sonnet-4-5-20251022',
+        max_tokens: 800,
         tools: [{
           type:     'web_search_20250305',
           name:     'web_search',
-          max_uses: 6,
+          max_uses: 4,
         }],
-        system: 'You are a price comparison API. You MUST respond with ONLY a valid JSON array. No explanation, no text before or after the JSON. Start your response with [ and end with ].',
+        system: 'You are a JSON API. You must ALWAYS respond with ONLY a valid JSON array starting with [ and ending with ]. Never write any text outside the JSON array.',
         messages: [{
           role:    'user',
-          content:
-            `Search for current UK prices for ${brand} nappies size ${size}. ` +
-            `Check Amazon UK, Boots, Asda, Aldi. ` +
-            `Return ONLY this JSON array with 2 cheapest results, nothing else:\n` +
-            `[{"retailer":"Amazon","pack":"exact product name","count":96,"total":22.99,"pricePerNappy":0.239,"url":"https://exact-product-url"}]`,
+          content: `Search for current UK retail prices for ${brand} nappies size ${size}. Check Amazon UK, Boots, Asda. Return ONLY this JSON (no other text):\n[{"retailer":"Amazon","pack":"product name","count":96,"total":22.99,"pricePerNappy":0.24,"url":"https://amazon.co.uk/..."},{"retailer":"Boots","pack":"product name","count":52,"total":15.99,"pricePerNappy":0.31,"url":"https://boots.com/..."}]`,
         }],
       }),
     });
 
-    console.log('Claude API status:', res.status);
+    console.log('API status:', res.status);
 
-    const rawText = await res.text();
-    console.log('Claude raw response (first 500 chars):', rawText.slice(0, 500));
+    if (res.status === 429) {
+      console.log('Rate limited — returning search links');
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
+      };
+    }
 
     if (!res.ok) {
+      const errText = await res.text();
+      console.error('API error:', res.status, errText.slice(0, 200));
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          deals: fallback(brand, size, `API error ${res.status}`),
-          source: 'fallback',
-          debug: rawText.slice(0, 200),
-        }),
+        body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
       };
     }
 
-    const data = JSON.parse(rawText);
+    const data = await res.json();
     const textBlocks = (data.content || []).filter(b => b.type === 'text');
     const raw = textBlocks.map(b => b.text).join('').trim();
+    console.log('Response text:', raw.slice(0, 400));
 
-    console.log('Extracted text:', raw.slice(0, 300));
-
-    // Find JSON array anywhere in the response — handles cases where
-    // Claude adds explanation text before or after the JSON
-    const jsonMatch = raw.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.error('No JSON array found in response:', raw.slice(0, 200));
+    // Extract JSON array from response
+    const match = raw.match(/\[[\s\S]*?\]/);
+    if (!match) {
+      console.error('No JSON array found in:', raw.slice(0, 300));
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          deals: fallback(brand, size, 'no JSON array in response'),
-          source: 'fallback',
-          debug: raw.slice(0, 200),
-        }),
+        body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
       };
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(jsonMatch[0]);
-    } catch (e) {
-      console.error('JSON parse failed:', e.message, 'extracted:', jsonMatch[0].slice(0, 200));
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          deals: fallback(brand, size, 'JSON parse failed'),
-          source: 'fallback',
-          debug: jsonMatch[0].slice(0, 200),
-        }),
-      };
-    }
-
+    const parsed = JSON.parse(match[0]);
     if (!Array.isArray(parsed) || parsed.length === 0) {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          deals: fallback(brand, size, 'empty result'),
-          source: 'fallback',
-        }),
+        body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
       };
     }
 
@@ -200,32 +179,38 @@ export const handler = async (event) => {
         retailer:      String(d.retailer),
         pack:          String(d.pack || `${brand} Size ${size}`),
         size:          `Size ${size}`,
-        count:         Math.round(Number(d.count)) || 0,
+        count:         Math.round(Number(d.count)),
         total:         Number(Number(d.total).toFixed(2)),
-        pricePerNappy: Number(Number(d.pricePerNappy || (d.total / d.count)).toFixed(3)),
+        pricePerNappy: Number(Number(d.pricePerNappy || d.total / d.count).toFixed(3)),
         url: addAffiliateTag(
           d.url && d.url.startsWith('http') ? d.url : searchUrl(d.retailer, brand, size),
           d.retailer
         ),
+        isSearchLink: false,
       }));
 
-    console.log('Final deals:', JSON.stringify(deals));
+    console.log('Live deals found:', deals.length);
+
+    if (deals.length === 0) {
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
+      };
+    }
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deals, source: deals.length > 0 ? 'live' : 'fallback' }),
+      body: JSON.stringify({ deals, source: 'live' }),
     };
 
   } catch (err) {
-    console.error('Unexpected error:', err.message);
+    console.error('Error:', err.message);
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        deals: fallback(brand, size, err.message),
-        source: 'fallback',
-      }),
+      body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
     };
   }
 };
