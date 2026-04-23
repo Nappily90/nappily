@@ -1,8 +1,11 @@
 /**
  * netlify/functions/search-deals.js
  * ─────────────────────────────────────────────────────────────
- * Returns best nappy deals by querying Claude for price knowledge
- * with a strict JSON-only instruction. Falls back to search URLs.
+ * Returns best nappy deals using Claude to reason about prices
+ * from its training data, then directs users to search links.
+ * 
+ * Architecture: Claude gives its best known prices + direct 
+ * product search URLs. This is reliable and fast.
  */
 
 const AMAZON_TAG     = 'nappily26-21';
@@ -46,32 +49,6 @@ function searchUrl(retailer, brand, size) {
   return `https://www.google.co.uk/search?q=${q}`;
 }
 
-function buildFallback(brand, size) {
-  console.log('Using search URL fallback');
-  return [
-    {
-      retailer:      'Amazon',
-      pack:          `${brand} nappies size ${size}`,
-      size:          `Size ${size}`,
-      count:         null,
-      total:         null,
-      pricePerNappy: null,
-      url:           addAffiliateTag(searchUrl('Amazon', brand, size), 'Amazon'),
-      isSearchLink:  true,
-    },
-    {
-      retailer:      'Boots',
-      pack:          `${brand} nappies size ${size}`,
-      size:          `Size ${size}`,
-      count:         null,
-      total:         null,
-      pricePerNappy: null,
-      url:           addAffiliateTag(searchUrl('Boots', brand, size), 'Boots'),
-      isSearchLink:  true,
-    },
-  ];
-}
-
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method not allowed' };
@@ -96,70 +73,53 @@ export const handler = async (event) => {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
+      body: JSON.stringify({ deals: buildSearchLinks(brand, size), source: 'links' }),
     };
   }
 
   try {
-    // Use claude-sonnet which has better instruction following
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type':      'application/json',
         'x-api-key':         apiKey,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta':    'web-search-2025-03-05',
       },
       body: JSON.stringify({
-        model:      'claude-sonnet-4-5-20251022',
-        max_tokens: 800,
-        tools: [{
-          type:     'web_search_20250305',
-          name:     'web_search',
-          max_uses: 4,
-        }],
-        system: 'You are a JSON API. You must ALWAYS respond with ONLY a valid JSON array starting with [ and ending with ]. Never write any text outside the JSON array.',
+        model:      'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        system:     'You are a UK nappy price API. Respond with ONLY a JSON array. No prose. No markdown. Just the JSON array.',
         messages: [{
           role:    'user',
-          content: `Search for current UK retail prices for ${brand} nappies size ${size}. Check Amazon UK, Boots, Asda. Return ONLY this JSON (no other text):\n[{"retailer":"Amazon","pack":"product name","count":96,"total":22.99,"pricePerNappy":0.24,"url":"https://amazon.co.uk/..."},{"retailer":"Boots","pack":"product name","count":52,"total":15.99,"pricePerNappy":0.31,"url":"https://boots.com/..."}]`,
+          content: `Give me typical current UK retail prices for ${brand} nappies size ${size}. Include Amazon UK and Boots. Use your knowledge of typical UK nappy prices from 2024-2025. Return ONLY this JSON array with no other text:\n[{"retailer":"Amazon","pack":"${brand} Size ${size} Nappies","count":96,"total":22.99,"pricePerNappy":0.239},{"retailer":"Boots","pack":"${brand} Size ${size} Nappies","count":52,"total":16.50,"pricePerNappy":0.317}]`,
         }],
       }),
     });
 
     console.log('API status:', res.status);
 
-    if (res.status === 429) {
-      console.log('Rate limited — returning search links');
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
-      };
-    }
-
     if (!res.ok) {
-      const errText = await res.text();
-      console.error('API error:', res.status, errText.slice(0, 200));
+      const err = await res.text();
+      console.error('API error:', res.status, err.slice(0, 200));
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
+        body: JSON.stringify({ deals: buildSearchLinks(brand, size), source: 'links' }),
       };
     }
 
     const data = await res.json();
     const textBlocks = (data.content || []).filter(b => b.type === 'text');
     const raw = textBlocks.map(b => b.text).join('').trim();
-    console.log('Response text:', raw.slice(0, 400));
+    console.log('Response:', raw.slice(0, 400));
 
-    // Extract JSON array from response
-    const match = raw.match(/\[[\s\S]*?\]/);
+    const match = raw.match(/\[[\s\S]*\]/);
     if (!match) {
-      console.error('No JSON array found in:', raw.slice(0, 300));
+      console.error('No JSON array in response');
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
+        body: JSON.stringify({ deals: buildSearchLinks(brand, size), source: 'links' }),
       };
     }
 
@@ -168,7 +128,7 @@ export const handler = async (event) => {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
+        body: JSON.stringify({ deals: buildSearchLinks(brand, size), source: 'links' }),
       };
     }
 
@@ -182,27 +142,25 @@ export const handler = async (event) => {
         count:         Math.round(Number(d.count)),
         total:         Number(Number(d.total).toFixed(2)),
         pricePerNappy: Number(Number(d.pricePerNappy || d.total / d.count).toFixed(3)),
-        url: addAffiliateTag(
-          d.url && d.url.startsWith('http') ? d.url : searchUrl(d.retailer, brand, size),
-          d.retailer
-        ),
-        isSearchLink: false,
+        url:           addAffiliateTag(searchUrl(d.retailer, brand, size), d.retailer),
+        isSearchLink:  false,
+        note:          'Typical price — click to see today\'s actual price',
       }));
 
-    console.log('Live deals found:', deals.length);
+    console.log('Deals returned:', deals.length);
 
     if (deals.length === 0) {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
+        body: JSON.stringify({ deals: buildSearchLinks(brand, size), source: 'links' }),
       };
     }
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deals, source: 'live' }),
+      body: JSON.stringify({ deals, source: 'estimated' }),
     };
 
   } catch (err) {
@@ -210,7 +168,24 @@ export const handler = async (event) => {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deals: buildFallback(brand, size), source: 'fallback' }),
+      body: JSON.stringify({ deals: buildSearchLinks(brand, size), source: 'links' }),
     };
   }
 };
+
+/**
+ * Pure search links — used when we can't get any price data.
+ * Shows retailer name with a "Search" link, no fake prices.
+ */
+function buildSearchLinks(brand, size) {
+  return ['Amazon', 'Boots', 'Asda', 'Aldi'].map(retailer => ({
+    retailer,
+    pack:          `${brand} nappies size ${size}`,
+    size:          `Size ${size}`,
+    count:         null,
+    total:         null,
+    pricePerNappy: null,
+    url:           addAffiliateTag(searchUrl(retailer, brand, size), retailer),
+    isSearchLink:  true,
+  }));
+}
