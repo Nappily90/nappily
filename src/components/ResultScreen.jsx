@@ -22,6 +22,7 @@ const IMPACT_DESC = {
 };
 
 function DealCard({ deal }) {
+  const isSearch = deal.isSearchLink || !deal.total;
   return (
     <a
       href={deal.url}
@@ -32,11 +33,19 @@ function DealCard({ deal }) {
       <div className="flex-1 min-w-0 mr-4">
         <p className="text-[14px] font-medium text-cream-600 mb-0.5">{deal.retailer}</p>
         <p className="text-[12px] text-cream-400 truncate">{deal.pack}</p>
-        <p className="text-[12px] text-cream-400">{deal.count} nappies · £{deal.pricePerNappy.toFixed(2)}/nappy</p>
+        {!isSearch && (
+          <p className="text-[12px] text-cream-400">{deal.count} nappies · £{deal.pricePerNappy?.toFixed(2)}/nappy</p>
+        )}
       </div>
       <div className="text-right shrink-0">
-        <p className="text-[18px] font-semibold text-cream-600 mb-1">£{deal.total.toFixed(2)}</p>
-        <span className="text-[12px] text-cream-400 underline underline-offset-2">View deal →</span>
+        {isSearch ? (
+          <span className="text-[13px] text-cream-400 underline underline-offset-2">Search →</span>
+        ) : (
+          <>
+            <p className="text-[18px] font-semibold text-cream-600 mb-1">£{deal.total?.toFixed(2)}</p>
+            <span className="text-[12px] text-cream-400 underline underline-offset-2">View deal →</span>
+          </>
+        )}
       </div>
     </a>
   );
