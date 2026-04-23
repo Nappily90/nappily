@@ -1,0 +1,26 @@
+[build]
+  command = "npm install && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_FLAGS    = "--legacy-peer-deps"
+
+[functions]
+  directory    = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Give the AI search agent 30 seconds — web search takes time
+[functions."search-deals"]
+  timeout = 30
+
+[functions."send-reminders"]
+  schedule = "0 8 * * *"
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

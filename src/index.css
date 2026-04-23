@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background-color: #FAF9F7;
+    color: #1C1C1A;
+    font-family: 'DM Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply w-full bg-cream-600 text-cream-50 rounded-full py-4 px-8 font-medium text-base
+           transition-opacity duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed
+           cursor-pointer border-none;
+  }
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.88;
+  }
+
+  .btn-secondary {
+    @apply w-full bg-transparent text-cream-600 border border-cream-300 rounded-full py-[14px] px-8
+           font-normal text-[15px] transition-all duration-200 cursor-pointer;
+  }
+  .btn-secondary:hover {
+    @apply border-cream-600;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent border-none text-cream-400 text-sm cursor-pointer underline underline-offset-4;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl p-5 border border-cream-200 mb-3;
+  }
+
+  .card-soft {
+    @apply bg-cream-100 rounded-2xl p-5 mb-3;
+  }
+
+  .input-field {
+    @apply bg-cream-100 border-[1.5px] border-transparent rounded-xl px-4 py-3.5
+           font-sans text-base text-cream-600 w-full transition-colors duration-200
+           outline-none focus:border-cream-600;
+  }
+
+  .tag {
+    @apply px-[18px] py-2.5 rounded-full border-[1.5px] border-cream-300 bg-white
+           text-sm font-normal cursor-pointer transition-all duration-[180ms] text-cream-600
+           font-sans;
+  }
+  .tag:hover:not(.tag-active) {
+    @apply border-cream-600;
+  }
+  .tag-active {
+    @apply bg-cream-600 text-cream-50 border-cream-600;
+  }
+
+  .pill {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.35s ease both;
+  }
+
+  .hero-num {
+    @apply font-serif text-[52px] leading-none text-cream-600;
+  }
+
+  .stat-num {
+    @apply font-serif text-[34px] text-cream-600;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+select.input-field {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%237A7870' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
