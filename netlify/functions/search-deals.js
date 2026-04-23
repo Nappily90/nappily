@@ -115,13 +115,14 @@ export const handler = async (event) => {
           name:     'web_search',
           max_uses: 6,
         }],
+        system: 'You are a price comparison API. You MUST respond with ONLY a valid JSON array. No explanation, no text before or after the JSON. Start your response with [ and end with ].',
         messages: [{
           role:    'user',
           content:
-            `Find the current cheapest prices for ${brand} nappies size ${size} in the UK. ` +
-            `Check Amazon UK, Boots, Asda, and Aldi. ` +
-            `Return ONLY a JSON array of the 2 cheapest options. No markdown, no explanation. ` +
-            `Format: [{"retailer":"Amazon","pack":"product name","count":96,"total":22.99,"pricePerNappy":0.239,"url":"https://..."}]`,
+            `Search for current UK prices for ${brand} nappies size ${size}. ` +
+            `Check Amazon UK, Boots, Asda, Aldi. ` +
+            `Return ONLY this JSON array with 2 cheapest results, nothing else:\n` +
+            `[{"retailer":"Amazon","pack":"exact product name","count":96,"total":22.99,"pricePerNappy":0.239,"url":"https://exact-product-url"}]`,
         }],
       }),
     });
@@ -149,20 +150,34 @@ export const handler = async (event) => {
 
     console.log('Extracted text:', raw.slice(0, 300));
 
-    const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/,'').trim();
+    // Find JSON array anywhere in the response — handles cases where
+    // Claude adds explanation text before or after the JSON
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.error('No JSON array found in response:', raw.slice(0, 200));
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deals: fallback(brand, size, 'no JSON array in response'),
+          source: 'fallback',
+          debug: raw.slice(0, 200),
+        }),
+      };
+    }
 
     let parsed;
     try {
-      parsed = JSON.parse(clean);
+      parsed = JSON.parse(jsonMatch[0]);
     } catch (e) {
-      console.error('JSON parse failed:', e.message, 'raw:', clean.slice(0, 200));
+      console.error('JSON parse failed:', e.message, 'extracted:', jsonMatch[0].slice(0, 200));
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deals: fallback(brand, size, 'JSON parse failed'),
           source: 'fallback',
-          debug: clean.slice(0, 200),
+          debug: jsonMatch[0].slice(0, 200),
         }),
       };
     }
