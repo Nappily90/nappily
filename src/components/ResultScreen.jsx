@@ -34,18 +34,16 @@ function DealCard({ deal }) {
         <p className="text-[14px] font-medium text-cream-600 mb-0.5">{deal.retailer}</p>
         <p className="text-[12px] text-cream-400 truncate">{deal.pack}</p>
         {!isSearch && (
-          <p className="text-[12px] text-cream-400">{deal.count} nappies · £{deal.pricePerNappy?.toFixed(2)}/nappy</p>
+          <p className="text-[15px] font-semibold text-cream-600 mt-1">
+            £{deal.pricePerNappy?.toFixed(2)}
+            <span className="text-[12px] font-normal text-cream-400"> /nappy · {deal.count} pack</span>
+          </p>
         )}
       </div>
       <div className="text-right shrink-0">
-        {isSearch ? (
-          <span className="text-[13px] text-cream-400 underline underline-offset-2">Search →</span>
-        ) : (
-          <>
-            <p className="text-[18px] font-semibold text-cream-600 mb-1">£{deal.total?.toFixed(2)}</p>
-            <span className="text-[12px] text-cream-400 underline underline-offset-2">View deal →</span>
-          </>
-        )}
+        <span className="text-[15px] font-semibold text-cream-600 underline underline-offset-2">
+          {isSearch ? 'Search →' : 'View deal →'}
+        </span>
       </div>
     </a>
   );
@@ -236,3 +234,4 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
     </div>
   );
 }
+
