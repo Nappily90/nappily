@@ -51,15 +51,40 @@ export function getBaseUsage(ageMonths) {
 
 /**
  * Returns the usage delta for the current nappy size.
- * Smaller sizes → more changes; larger → fewer.
- * @param {number} size  1–6
+ *
+ * Rules:
+ *   Size 1–2 → always +1 (newborns always change more)
+ *   Size 3–4 → always 0
+ *   Size 5–6 → −1 ONLY when:
+ *     - currentSize >= expectedSize (baby is in the right size or ahead)
+ *     - AND fitStatus is NOT 'tight' (tight fit = more leaks = more changes)
+ *     - AND fitStatus is NOT 'not-sure' (unknown fit = don't reduce, be conservative)
+ *
+ * Rationale: a larger size only means fewer changes when the nappy
+ * fits well. If it's tight or unknown, we keep the estimate conservative.
+ *
+ * @param {number} size         1–6
+ * @param {number} expectedSize from getExpectedSize(ageMonths)
+ * @param {'fits'|'tight'|'not-sure'|null} fitStatus
  * @returns {number}  -1 | 0 | 1
  */
-export function getSizeAdjustment(size) {
+export function getSizeAdjustment(size, expectedSize, fitStatus) {
   if (size < 1 || size > 6) throw new RangeError(`size must be 1–6, got ${size}`);
+
+  // Small sizes always need more changes
   if (size <= 2) return 1;
+
+  // Mid sizes — no adjustment
   if (size <= 4) return 0;
-  return -1;
+
+  // Size 5–6 — only reduce if size is appropriate AND fit is confirmed good
+  const sizeIsAppropriate = size >= expectedSize;
+  const fitIsGood         = fitStatus === 'fits';
+
+  if (sizeIsAppropriate && fitIsGood) return -1;
+
+  // Tight, not-sure, or unknown → don't subtract (conservative estimate)
+  return 0;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -336,15 +361,19 @@ export function roundTo(value, decimals) {
  * }}
  */
 export function calcPrediction(form) {
-  const size       = form.currentSize ?? form.size;
-  const fitStatus  = form.fitStatus  ?? 'not-sure';
-  const impact     = form.impact     ?? 'normal';
+  const size        = form.currentSize ?? form.size;
+  const fitStatus   = form.fitStatus   ?? 'not-sure';
+  const impact      = form.impact      ?? 'normal';
   const impactSetAt = form.impactSetAt;
   const nurseryDays = form.nurseryDays ?? 0;
 
-  // Step 1 + 2: base + size adjustment
+  // Step 1: base usage from age
   const baseUsage    = getBaseUsage(Number(form.ageMonths));
-  const afterSizeAdj = baseUsage + getSizeAdjustment(size);
+
+  // Step 2: size adjustment — now context-aware
+  // Need expectedSize first so getSizeAdjustment can apply the rule correctly
+  const expectedSize = getExpectedSize(Number(form.ageMonths));
+  const afterSizeAdj = baseUsage + getSizeAdjustment(size, expectedSize, fitStatus);
 
   // Step 3: nursery factor
   const nurseryFactor   = getNurseryFactor(form.nursery, nurseryDays, form.nurseryProvides ?? false);
@@ -378,3 +407,4 @@ export function calcPrediction(form) {
     },
   };
 }
+
