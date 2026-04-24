@@ -1,9 +1,14 @@
 /**
  * netlify/functions/send-reminders.js
  * ─────────────────────────────────────────────────────────────
- * Scheduled Netlify function — runs daily at 8am UTC.
- * Sends push notifications to users at 5 days and 3 days remaining.
+ * Scheduled function — runs daily at 8am UTC.
+ * Sends BOTH push notifications AND email reminders.
+ *
+ * Reminder schedule:
+ *   5 days left → soft reminder
+ *   3 days left → urgent reminder
  */
+
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
 
@@ -18,76 +23,181 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const SOFT_DAYS   = 5;
-const URGENT_DAYS = 3;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const FROM_EMAIL     = 'Nappily <reminders@nappily.app>';
+const SOFT_DAYS      = 5;
+const URGENT_DAYS    = 3;
 
-export const handler = async () => {
-  try {
-    // Get all push subscriptions
-    const { data: subs, error: subError } = await supabase
-      .from('push_subscriptions')
-      .select('user_id, subscription');
+// ─── Email templates ──────────────────────────────────────────
 
-    if (subError) throw subError;
-    if (!subs?.length) return { statusCode: 200, body: 'No subscribers' };
+function softEmailHtml(daysLeft, brand, size) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nappily reminder</title>
+</head>
+<body style="margin:0;padding:0;background:#FAF9F7;font-family:'DM Sans',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF9F7;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+          
+          <!-- Logo -->
+          <tr>
+            <td style="padding-bottom:32px;">
+              <span style="font-size:24px;font-weight:600;color:#1C1C1A;letter-spacing:-0.5px;">Napp<em style="color:#7A7870;">ily</em></span>
+            </td>
+          </tr>
 
-    // Get their baby profiles
-    const userIds = subs.map(s => s.user_id);
-    const { data: profiles, error: profileError } = await supabase
-      .from('baby_profiles')
-      .select('user_id, stock, age_months, size, nursery, nursery_days, nursery_provides, impact, impact_set_at')
-      .in('user_id', userIds);
+          <!-- Hero card -->
+          <tr>
+            <td style="background:#fff;border-radius:20px;border:1px solid #EBEBEA;padding:32px;">
+              <p style="margin:0 0 8px;font-size:13px;color:#7A7870;text-transform:uppercase;letter-spacing:1px;">Nappy reminder</p>
+              <h1 style="margin:0 0 16px;font-size:36px;color:#1C1C1A;font-weight:700;line-height:1.1;">
+                About ${daysLeft} days left
+              </h1>
+              <p style="margin:0 0 24px;font-size:16px;color:#7A7870;line-height:1.6;">
+                You're getting low on ${brand ? brand + ' size ' + size : 'nappies'}. 
+                A good time to restock before you run out.
+              </p>
+              <a href="https://nappily.app" 
+                 style="display:inline-block;background:#1C1C1A;color:#FAF9F7;text-decoration:none;
+                        padding:14px 28px;border-radius:50px;font-size:15px;font-weight:500;">
+                Update my stock
+              </a>
+            </td>
+          </tr>
 
-    if (profileError) throw profileError;
+          <!-- Tip -->
+          <tr>
+            <td style="padding:24px 0 0;">
+              <p style="margin:0;font-size:13px;color:#7A7870;line-height:1.6;">
+                💡 Tip: Order now and you'll arrive before you run out. 
+                Check today's best prices at <a href="https://nappily.app" style="color:#1C1C1A;">nappily.app</a>
+              </p>
+            </td>
+          </tr>
 
-    const results = { sent: 0, skipped: 0, errors: 0 };
+          <!-- Footer -->
+          <tr>
+            <td style="padding:32px 0 0;border-top:1px solid #EBEBEA;margin-top:24px;">
+              <p style="margin:0;font-size:12px;color:#7A7870;">
+                You're receiving this because you enabled reminders on Nappily.<br/>
+                <a href="https://nappily.app" style="color:#7A7870;">Manage reminders</a>
+              </p>
+            </td>
+          </tr>
 
-    for (const sub of subs) {
-      const profile = profiles?.find(p => p.user_id === sub.user_id);
-      if (!profile?.stock || !profile?.size) { results.skipped++; continue; }
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
 
-      const daysLeft = calculateDaysLeft(profile);
-      if (daysLeft === null) { results.skipped++; continue; }
+function urgentEmailHtml(daysLeft, brand, size) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nappily — urgent reminder</title>
+</head>
+<body style="margin:0;padding:0;background:#FAF9F7;font-family:'DM Sans',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF9F7;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+          
+          <!-- Logo -->
+          <tr>
+            <td style="padding-bottom:32px;">
+              <span style="font-size:24px;font-weight:600;color:#1C1C1A;letter-spacing:-0.5px;">Napp<em style="color:#7A7870;">ily</em></span>
+            </td>
+          </tr>
 
-      const isSoft   = daysLeft > URGENT_DAYS && daysLeft <= SOFT_DAYS;
-      const isUrgent = daysLeft <= URGENT_DAYS;
-      if (!isSoft && !isUrgent) { results.skipped++; continue; }
+          <!-- Urgent card -->
+          <tr>
+            <td style="background:#FDECEA;border-radius:20px;border:1px solid #FDECEA;padding:32px;">
+              <p style="margin:0 0 8px;font-size:13px;color:#A33030;text-transform:uppercase;letter-spacing:1px;">⚠️ Running very low</p>
+              <h1 style="margin:0 0 16px;font-size:36px;color:#1C1C1A;font-weight:700;line-height:1.1;">
+                Only ${daysLeft} day${daysLeft === 1 ? '' : 's'} left
+              </h1>
+              <p style="margin:0 0 24px;font-size:16px;color:#55534E;line-height:1.6;">
+                You're almost out of ${brand ? brand + ' size ' + size : 'nappies'}. 
+                Order now to avoid running out.
+              </p>
+              <a href="https://nappily.app"
+                 style="display:inline-block;background:#1C1C1A;color:#FAF9F7;text-decoration:none;
+                        padding:14px 28px;border-radius:50px;font-size:15px;font-weight:500;">
+                Order now →
+              </a>
+            </td>
+          </tr>
 
-      const notification = isUrgent
-        ? {
-            title: '🚨 Almost out of nappies',
-            body:  `About ${Math.round(daysLeft)} day${daysLeft === 1 ? '' : 's'} left — time to order now.`,
-            tag:   'nappily-urgent',
-          }
-        : {
-            title: '🧷 Nappy reminder',
-            body:  `About ${Math.round(daysLeft)} days left — a good time to restock soon.`,
-            tag:   'nappily-soft',
-          };
+          <!-- Best deals nudge -->
+          <tr>
+            <td style="padding:24px 0 0;">
+              <p style="margin:0;font-size:13px;color:#7A7870;line-height:1.6;">
+                Open Nappily to see today's best prices across Amazon, Boots, Asda and more.
+              </p>
+            </td>
+          </tr>
 
-      try {
-        await webpush.sendNotification(
-          JSON.parse(sub.subscription),
-          JSON.stringify(notification)
-        );
-        results.sent++;
-      } catch (pushErr) {
-        // Subscription expired — remove it
-        if (pushErr.statusCode === 410) {
-          await supabase.from('push_subscriptions').delete().eq('user_id', sub.user_id);
-        }
-        results.errors++;
-      }
-    }
+          <!-- Footer -->
+          <tr>
+            <td style="padding:32px 0 0;">
+              <p style="margin:0;font-size:12px;color:#7A7870;">
+                You're receiving this because you enabled reminders on Nappily.<br/>
+                <a href="https://nappily.app" style="color:#7A7870;">Manage reminders</a>
+              </p>
+            </td>
+          </tr>
 
-    console.log('Reminder results:', results);
-    return { statusCode: 200, body: JSON.stringify(results) };
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
 
-  } catch (err) {
-    console.error('send-reminders error:', err);
-    return { statusCode: 500, body: err.message };
+// ─── Send email via Resend ────────────────────────────────────
+
+async function sendEmail(to, subject, html) {
+  if (!RESEND_API_KEY) {
+    console.log('No RESEND_API_KEY — skipping email to', to);
+    return;
   }
-};
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method:  'POST',
+    headers: {
+      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'Content-Type':  'application/json',
+    },
+    body: JSON.stringify({
+      from:    FROM_EMAIL,
+      to:      [to],
+      subject,
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error('Resend error for', to, ':', err);
+  } else {
+    console.log('Email sent to', to);
+  }
+}
+
+// ─── Days left calculation ────────────────────────────────────
 
 function calculateDaysLeft(profile) {
   const { age_months: age, size, stock } = profile;
@@ -116,3 +226,107 @@ function calculateDaysLeft(profile) {
 
   return Math.round(Math.max(1, stock / Math.max(1, usage)));
 }
+
+// ─── Main handler ─────────────────────────────────────────────
+
+export const handler = async () => {
+  console.log('send-reminders starting...');
+
+  try {
+    // Get all users with push subscriptions
+    const { data: subs, error: subError } = await supabase
+      .from('push_subscriptions')
+      .select('user_id, subscription');
+
+    if (subError) throw subError;
+
+    // Get all baby profiles
+    const { data: profiles, error: profileError } = await supabase
+      .from('baby_profiles')
+      .select('user_id, stock, age_months, size, brand, nursery, nursery_days, nursery_provides, impact, impact_set_at');
+
+    if (profileError) throw profileError;
+
+    // Get all user emails
+    const { data: users, error: userError } = await supabase
+      .from('auth.users')
+      .select('id, email');
+
+    // Fallback: get emails via admin API if above fails
+    let emailMap = {};
+    if (!userError && users) {
+      users.forEach(u => { emailMap[u.id] = u.email; });
+    } else {
+      // Use service role to get user emails
+      const { data: { users: adminUsers } } = await supabase.auth.admin.listUsers();
+      if (adminUsers) {
+        adminUsers.forEach(u => { emailMap[u.id] = u.email; });
+      }
+    }
+
+    const results = { pushSent: 0, emailSent: 0, skipped: 0, errors: 0 };
+
+    // Process all profiles (not just push subscribers)
+    const allUserIds = [...new Set([
+      ...(subs || []).map(s => s.user_id),
+      ...(profiles || []).map(p => p.user_id),
+    ])];
+
+    for (const userId of allUserIds) {
+      const profile  = profiles?.find(p => p.user_id === userId);
+      const sub      = subs?.find(s => s.user_id === userId);
+      const email    = emailMap[userId];
+
+      if (!profile?.stock || !profile?.size) { results.skipped++; continue; }
+
+      const daysLeft = calculateDaysLeft(profile);
+      if (daysLeft === null) { results.skipped++; continue; }
+
+      const isSoft   = daysLeft > URGENT_DAYS && daysLeft <= SOFT_DAYS;
+      const isUrgent = daysLeft <= URGENT_DAYS;
+
+      if (!isSoft && !isUrgent) { results.skipped++; continue; }
+
+      const brand = profile.brand || '';
+      const size  = profile.size;
+
+      // ── Push notification ──────────────────────────────────
+      if (sub) {
+        const pushPayload = isUrgent
+          ? { title: '🚨 Almost out of nappies', body: `Only ${daysLeft} day${daysLeft === 1 ? '' : 's'} left — order now.`, tag: 'nappily-urgent' }
+          : { title: '🧷 Nappy reminder',         body: `About ${daysLeft} days left — good time to restock.`,               tag: 'nappily-soft'   };
+
+        try {
+          await webpush.sendNotification(JSON.parse(sub.subscription), JSON.stringify(pushPayload));
+          results.pushSent++;
+        } catch (pushErr) {
+          if (pushErr.statusCode === 410) {
+            await supabase.from('push_subscriptions').delete().eq('user_id', userId);
+          }
+          results.errors++;
+        }
+      }
+
+      // ── Email reminder ─────────────────────────────────────
+      if (email) {
+        const subject = isUrgent
+          ? `⚠️ Only ${daysLeft} day${daysLeft === 1 ? '' : 's'} of nappies left`
+          : `🧷 About ${daysLeft} days of nappies left`;
+
+        const html = isUrgent
+          ? urgentEmailHtml(daysLeft, brand, size)
+          : softEmailHtml(daysLeft, brand, size);
+
+        await sendEmail(email, subject, html);
+        results.emailSent++;
+      }
+    }
+
+    console.log('Results:', results);
+    return { statusCode: 200, body: JSON.stringify(results) };
+
+  } catch (err) {
+    console.error('send-reminders error:', err);
+    return { statusCode: 500, body: err.message };
+  }
+};
