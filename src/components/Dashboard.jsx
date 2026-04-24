@@ -45,8 +45,7 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
   ];
 
   return (
-    <div style={{ paddingBottom: '140px' }}>
-      {/* Header */}
+    <div style={{ paddingBottom: '160px' }}>
       <div className="flex justify-between items-center px-5 pt-8 mb-6">
         <Logo />
         <div className="flex items-center gap-2">
@@ -60,15 +59,13 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
       </div>
 
       <div className="px-5">
-        {/* Hero */}
         <p className="text-cream-400 text-[13px] mb-1">Your plan</p>
         <h2 className="font-serif text-[36px] leading-[1.1] mb-6">
-          You'll run out in about <span className="text-cream-600">{daysLeft}</span> days
+          You'll run out in about {daysLeft} days
         </h2>
 
         <UrgencyBar label={reminder.label} level={reminder.level} />
 
-        {/* Notification prompt */}
         {showPrompt && (
           <NotificationPrompt
             subscribing={subscribing}
@@ -77,7 +74,6 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
           />
         )}
 
-        {/* Granted confirmation — subtle */}
         {isGranted && (
           <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-cream-100 mb-3">
             <span className="text-green-400 text-sm">✓</span>
@@ -85,7 +81,6 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
           </div>
         )}
 
-        {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3 mb-4">
           {stats.map(([label, value]) => (
             <div key={label} className="bg-white rounded-2xl border border-cream-200 px-4 py-4">
@@ -95,7 +90,6 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
           ))}
         </div>
 
-        {/* Temporary impact */}
         {hasImpact && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4 mb-3">
             <p className="text-[13px] font-medium text-amber-400 mb-1">{IMPACT_LABELS[form.impact]}</p>
@@ -103,7 +97,6 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
           </div>
         )}
 
-        {/* Size transition */}
         {transition.state !== 'STABLE' && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4 mb-3">
             <p className="text-[13px] font-medium text-amber-400 mb-1">Size insight</p>
@@ -116,11 +109,10 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
         )}
       </div>
 
-      {/* Bottom actions */}
       <div className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto px-5 pb-8 pt-5 bg-gradient-to-t from-[#FAF9F7] via-[#FAF9F7] to-transparent">
         <div className="flex flex-col gap-3">
           <button className="btn-primary" onClick={onUpdateStock}>Update my stock</button>
-          <button className="btn-secondary" onClick={onViewResult}>See full estimate</button>
+          <button className="btn-secondary" onClick={onViewResult}>See full estimate & buy</button>
         </div>
       </div>
     </div>
