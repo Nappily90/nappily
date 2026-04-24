@@ -10,7 +10,9 @@
 
 const AMAZON_TAG     = 'nappily26-21';
 const AWIN_PUBLISHER = '2865911';
-const AWIN_MERCHANTS = { boots: '2041', asda: '6250' };
+const AWIN_MERCHANTS = { boots: '2041' };
+const CJ_PUBLISHER   = '7938614';
+const CJ_MERCHANTS   = { asda: '6316018' };
 
 function addAmazonTag(url) {
   if (!url || !url.includes('amazon.co.uk')) return url;
@@ -26,7 +28,14 @@ function addAmazonTag(url) {
 function addAwinTag(url, merchantKey) {
   const mid = AWIN_MERCHANTS[merchantKey];
   if (!mid || !url || url === '#') return url;
-  return `https://www.awin1.com/cread.php?awinmid=${mid}&awinaffid=${AWIN_PUBLISHER}&ued=${encodeURIComponent(url)}`;
+  // Use clickref to pass search query through Awin
+  return `https://www.awin1.com/cread.php?awinmid=${mid}&awinaffid=${AWIN_PUBLISHER}&platform=dl&ued=${encodeURIComponent(url)}`;
+}
+
+function addCjTag(url, merchantKey) {
+  const mid = CJ_MERCHANTS[merchantKey];
+  if (!mid || !url || url === '#') return url;
+  return `https://www.anrdoezrs.net/click-${CJ_PUBLISHER}-${mid}?url=${encodeURIComponent(url)}`;
 }
 
 function addAffiliateTag(url, retailer) {
@@ -38,17 +47,17 @@ function addAffiliateTag(url, retailer) {
     return addAmazonTag(url);
   }
 
-  // Boots — wrap in Awin redirect (cookie-based tracking, 30-day window)
+  // Boots — Awin deep link (cookie-based tracking, 30-day window)
   if (r.includes('boots') || (url && url.includes('boots.com'))) {
     return addAwinTag(url, 'boots');
   }
 
-  // Asda — wrap in Awin redirect
+  // Asda — CJ affiliate link (cookie-based tracking)
   if (r.includes('asda') || (url && url.includes('asda.com'))) {
-    return addAwinTag(url, 'asda');
+    return addCjTag(url, 'asda');
   }
 
-  // All other retailers — return URL as-is (no affiliate tag)
+  // All other retailers — return URL as-is
   return url;
 }
 
@@ -56,7 +65,8 @@ function searchUrl(retailer, brand, size) {
   const q = encodeURIComponent(`${brand} nappies size ${size}`);
   const r = retailer.toLowerCase();
   if (r.includes('amazon')) return `https://www.amazon.co.uk/s?k=${q}&i=baby`;
-  if (r.includes('boots'))  return `https://www.boots.com/search?q=${encodeURIComponent(brand + ' size ' + size + ' nappies')}`;
+  // Boots deep link format — works with Awin platform=dl parameter
+  if (r.includes('boots'))  return `https://www.boots.com/search?q=${encodeURIComponent(brand + ' ' + size + ' nappies')}`;
   if (r.includes('asda'))   return `https://www.asda.com/search/${q}`;
   if (r.includes('aldi'))   return `https://www.aldi.co.uk/search?q=${q}`;
   if (r.includes('ocado'))  return `https://www.ocado.com/search?entry=${q}`;
