@@ -32,9 +32,23 @@ function addAwinTag(url, merchantKey) {
 function addAffiliateTag(url, retailer) {
   if (!url) return '#';
   const r = retailer.toLowerCase();
-  if (r.includes('amazon')) return addAmazonTag(url);
-  if (r.includes('boots'))  return addAwinTag(url, 'boots');
-  if (r.includes('asda'))   return addAwinTag(url, 'asda');
+
+  // Amazon — append associate tag to URL
+  if (r.includes('amazon') || (url && url.includes('amazon.co.uk'))) {
+    return addAmazonTag(url);
+  }
+
+  // Boots — wrap in Awin redirect (cookie-based tracking, 30-day window)
+  if (r.includes('boots') || (url && url.includes('boots.com'))) {
+    return addAwinTag(url, 'boots');
+  }
+
+  // Asda — wrap in Awin redirect
+  if (r.includes('asda') || (url && url.includes('asda.com'))) {
+    return addAwinTag(url, 'asda');
+  }
+
+  // All other retailers — return URL as-is (no affiliate tag)
   return url;
 }
 
