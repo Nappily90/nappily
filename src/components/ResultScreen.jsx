@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { saveFeedback } from '../lib/feedback';
 import { useDeals } from '../hooks/useDeals';
 import Logo from './Logo';
@@ -57,7 +58,9 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
     ? (form.otherBrand || 'nappies')
     : (form.brand || 'nappies');
 
-  const { deals, loading: dealsLoading, error: dealsError, source } = useDeals(brandName, form.size);
+  const [selectedSize, setSelectedSize] = useState(form.size);
+  const showSizeToggle = transition.state !== 'STABLE' && transition.suggestedSize;
+  const { deals, loading: dealsLoading, error: dealsError, source } = useDeals(brandName, selectedSize);
 
   const transitionMsg = {
     STABLE:       'Current size looks right for now.',
@@ -107,8 +110,35 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
       <div className="card mb-4">
         <div className="flex justify-between items-center mb-4">
           <p className="text-sm font-medium">Best places to buy</p>
-          <span className="text-[12px] text-cream-400">{brandName} · Size {form.size}</span>
+          <span className="text-[12px] text-cream-400">{brandName}</span>
         </div>
+
+        {/* Size toggle — shown when size insight is active */}
+        {showSizeToggle && (
+          <div className="flex gap-2 mb-4 p-1 bg-cream-100 rounded-xl">
+            <button
+              onClick={() => setSelectedSize(form.size)}
+              className={`flex-1 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                selectedSize === form.size
+                  ? 'bg-white text-cream-600 shadow-sm'
+                  : 'text-cream-400'
+              }`}
+            >
+              Size {form.size}
+            </button>
+            <button
+              onClick={() => setSelectedSize(transition.suggestedSize)}
+              className={`flex-1 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                selectedSize === transition.suggestedSize
+                  ? 'bg-white text-cream-600 shadow-sm'
+                  : 'text-cream-400'
+              }`}
+            >
+              Size {transition.suggestedSize}
+              <span className="ml-1 text-[11px] text-amber-400 font-normal">recommended</span>
+            </button>
+          </div>
+        )}
 
         {dealsLoading && (
           <div className="flex items-center gap-3 py-5">
