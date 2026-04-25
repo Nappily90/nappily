@@ -62,7 +62,15 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
   const showSizeToggle = transition.state !== 'STABLE' && transition.suggestedSize;
   const { deals, loading: dealsLoading, error: dealsError, source } = useDeals(brandName, selectedSize);
 
-  const transitionMsg = {
+  const feedbackContext = {
+    ageMonths:       form.ageMonths,
+    size:            form.size,
+    brand:           brandName,
+    stock:           form.stock,
+    dailyUsage:      usage,
+    daysLeft:        daysLeft,
+    transitionState: transition.state,
+  };
     STABLE:       'Current size looks right for now.',
     WATCH:        'You may need to size up soon.',
     SIZE_UP_SOON: `It's likely time to move to size ${transition.expectedSize + 1} for your next pack.`,
@@ -249,10 +257,10 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
         <p className="text-[13px] font-medium mb-1">Does this feel accurate?</p>
         <p className="text-cream-400 text-[13px] mb-3">Your feedback improves future estimates.</p>
         <div className="flex gap-2">
-          <button className="tag flex-1 text-center" onClick={() => { saveFeedback(userId, 'yes', null); onFeedback('yes'); }}>
+          <button className="tag flex-1 text-center" onClick={() => { saveFeedback(userId, 'yes', null, feedbackContext); onFeedback('yes'); }}>
             Looks right
           </button>
-          <button className="tag flex-1 text-center" onClick={() => onFeedback('no')}>
+          <button className="tag flex-1 text-center" onClick={() => onFeedback('no', feedbackContext)}>
             Not really
           </button>
         </div>
