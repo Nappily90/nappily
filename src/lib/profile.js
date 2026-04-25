@@ -21,6 +21,7 @@ function formToRow(userId, form) {
     nursery_days:     form.nurseryDays      || 0,
     nursery_provides: form.nurseryProvides  ?? false,
     stock:            form.stock !== ''     ? Number(form.stock) : null,
+    stock_updated_at: new Date().toISOString(), // stamped every save
     fit_status:       form.fitStatus        || null,
     impact:           form.impact           || null,
     impact_set_at:    form.impactSetAt      || null,
@@ -40,6 +41,7 @@ function rowToForm(row) {
     nurseryDays:     row.nursery_days     || 3,
     nurseryProvides: row.nursery_provides ?? false,
     stock:           row.stock            ?? '',
+    stockUpdatedAt:  row.stock_updated_at || null,
     fitStatus:       row.fit_status       || null,
     impact:          row.impact           || null,
     impactSetAt:     row.impact_set_at    || null,
