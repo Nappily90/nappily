@@ -106,8 +106,13 @@ export default function App() {
     setShowUpdateModal(false);
   };
 
-  const handleFeedback = (value) => {
-    if (value === 'no') setShowFeedback(true);
+  const [feedbackContext, setFeedbackContext] = useState(null);
+
+  const handleFeedback = (value, context = null) => {
+    if (value === 'no') {
+      setFeedbackContext(context);
+      setShowFeedback(true);
+    }
     if (form.fitStatus) {
       const updated = { ...form, hasFitFeedback: true };
       setForm(updated);
@@ -171,7 +176,7 @@ export default function App() {
         <UpdateStockModal form={form} onSave={handleSaveStock} onClose={() => setShowUpdateModal(false)} />
       )}
       {showFeedback && (
-        <FeedbackModal userId={user?.id} onClose={() => setShowFeedback(false)} />
+        <FeedbackModal userId={user?.id} context={feedbackContext} onClose={() => setShowFeedback(false)} />
       )}
     </div>
   );
