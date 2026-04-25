@@ -283,10 +283,10 @@ export const handler = async () => {
 
     if (subError) throw subError;
 
-    // Get all baby profiles
+    // Get all baby profiles including reminder sent timestamps
     const { data: profiles, error: profileError } = await supabase
       .from('baby_profiles')
-      .select('user_id, stock, stock_updated_at, age_months, size, brand, nursery, nursery_days, nursery_provides, impact, impact_set_at');
+      .select('user_id, stock, stock_updated_at, age_months, size, brand, nursery, nursery_days, nursery_provides, impact, impact_set_at, reminder_soft_sent_at, reminder_urgent_sent_at');
 
     if (profileError) throw profileError;
 
@@ -329,6 +329,29 @@ export const handler = async () => {
       const isUrgent = daysLeft <= URGENT_DAYS;
 
       if (!isSoft && !isUrgent) { results.skipped++; continue; }
+
+      // ── Check if reminder already sent this stock cycle ────
+      // Stock cycle resets when user updates stock (stock_updated_at changes)
+      // We only send each reminder type ONCE per stock cycle
+      const stockSetAt = profile.stock_updated_at
+        ? new Date(profile.stock_updated_at)
+        : new Date(0);
+
+      const softSentAt   = profile.reminder_soft_sent_at
+        ? new Date(profile.reminder_soft_sent_at)
+        : null;
+      const urgentSentAt = profile.reminder_urgent_sent_at
+        ? new Date(profile.reminder_urgent_sent_at)
+        : null;
+
+      // If reminder was already sent AFTER the last stock update → skip
+      const softAlreadySent   = softSentAt   && softSentAt   > stockSetAt;
+      const urgentAlreadySent = urgentSentAt && urgentSentAt > stockSetAt;
+
+      if (isSoft   && softAlreadySent)   { results.skipped++; continue; }
+      if (isUrgent && urgentAlreadySent) { results.skipped++; continue; }
+
+      const now = new Date().toISOString();
 
       const brand = profile.brand || '';
       const size  = profile.size;
@@ -382,6 +405,20 @@ export const handler = async () => {
         await sendEmail(email, subject, html, text);
         results.emailSent++;
       }
+
+      // ── Mark reminder as sent in Supabase ─────────────────
+      // This prevents the same reminder from being sent again
+      // until the user updates their stock (which resets stock_updated_at)
+      const flagUpdate = isUrgent
+        ? { reminder_urgent_sent_at: now }
+        : { reminder_soft_sent_at: now };
+
+      await supabase
+        .from('baby_profiles')
+        .update(flagUpdate)
+        .eq('user_id', userId);
+
+      console.log(`Flagged ${isUrgent ? 'urgent' : 'soft'} reminder sent for user ${userId}`);
     }
 
     console.log('Results:', results);
