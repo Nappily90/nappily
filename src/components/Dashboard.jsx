@@ -75,9 +75,18 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
         )}
 
         {isGranted && (
-          <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-cream-100 mb-3">
-            <span className="text-green-400 text-sm">✓</span>
-            <p className="text-[13px] text-cream-500">Reminders on — 5 days and 3 days before.</p>
+          <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-cream-100 mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-green-400 text-sm">✓</span>
+              <p className="text-[13px] text-cream-500">Reminders on — 5 and 3 days before.</p>
+            </div>
+            <button
+              onClick={requestPermission}
+              disabled={subscribing}
+              className="text-[12px] text-cream-400 underline underline-offset-2 hover:text-cream-600"
+            >
+              {subscribing ? 'Saving...' : 'Refresh'}
+            </button>
           </div>
         )}
 
