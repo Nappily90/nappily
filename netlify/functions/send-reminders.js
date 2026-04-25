@@ -197,12 +197,26 @@ async function sendEmail(to, subject, html) {
   }
 }
 
-// ─── Days left calculation ────────────────────────────────────
+// ─── Rolling stock + days left calculation ────────────────────
 
+/**
+ * Calculates estimated current stock and days left.
+ *
+ * Key insight: stock decreases every day whether or not the user
+ * opens the app. We use the saved stock + the timestamp of when
+ * it was last set to estimate how many nappies remain today.
+ *
+ * Formula:
+ *   dailyUsage       = prediction model output
+ *   daysSinceUpdate  = (now - stock_updated_at) in days
+ *   estimatedStock   = savedStock - (dailyUsage × daysSinceUpdate)
+ *   daysLeft         = estimatedStock / dailyUsage
+ */
 function calculateDaysLeft(profile) {
-  const { age_months: age, size, stock } = profile;
+  const { age_months: age, size, stock, stock_updated_at } = profile;
   if (!age || !size || !stock) return null;
 
+  // ── Step 1: base usage from age ──────────────────────────
   let base;
   if (age <= 2)       base = 11;
   else if (age <= 5)  base = 9;
@@ -211,20 +225,42 @@ function calculateDaysLeft(profile) {
   else if (age <= 18) base = 5;
   else                base = 4;
 
+  // ── Step 2: size adjustment ──────────────────────────────
   let usage = base + (size <= 2 ? 1 : size <= 4 ? 0 : -1);
 
+  // ── Step 3: nursery adjustment ───────────────────────────
   if (profile.nursery && profile.nursery_provides && profile.nursery_days) {
     usage *= (7 - profile.nursery_days) / 7;
   }
 
+  // ── Step 4: impact adjustment ────────────────────────────
   if (profile.impact && profile.impact !== 'normal' && profile.impact_set_at) {
-    const daysSince = (Date.now() - new Date(profile.impact_set_at).getTime()) / 86400000;
-    if (daysSince <= 3) {
+    const impactDays = (Date.now() - new Date(profile.impact_set_at).getTime()) / 86400000;
+    if (impactDays <= 3) {
       usage *= { more: 1.125, fewer: 0.85, tummy: 1.3 }[profile.impact] || 1;
     }
   }
 
-  return Math.round(Math.max(1, stock / Math.max(1, usage)));
+  usage = Math.max(1, usage);
+
+  // ── Step 5: rolling stock calculation ────────────────────
+  // Work out how many days have passed since the user last set their stock
+  const stockSetAt     = stock_updated_at ? new Date(stock_updated_at) : new Date();
+  const daysSinceUpdate = Math.max(0, (Date.now() - stockSetAt.getTime()) / 86400000);
+
+  // Estimate how many nappies they have used since last update
+  const nappiesUsedSince = daysSinceUpdate * usage;
+
+  // Estimated current stock — floor at 0
+  const estimatedStock = Math.max(0, stock - nappiesUsedSince);
+
+  console.log(
+    `User stock: saved=${stock}, daysSince=${daysSinceUpdate.toFixed(1)}, ` +
+    `usage=${usage.toFixed(1)}/day, estimated=${estimatedStock.toFixed(1)} remaining`
+  );
+
+  // ── Step 6: days left from estimated stock ────────────────
+  return Math.round(estimatedStock / usage);
 }
 
 // ─── Main handler ─────────────────────────────────────────────
@@ -243,7 +279,7 @@ export const handler = async () => {
     // Get all baby profiles
     const { data: profiles, error: profileError } = await supabase
       .from('baby_profiles')
-      .select('user_id, stock, age_months, size, brand, nursery, nursery_days, nursery_provides, impact, impact_set_at');
+      .select('user_id, stock, stock_updated_at, age_months, size, brand, nursery, nursery_days, nursery_provides, impact, impact_set_at');
 
     if (profileError) throw profileError;
 
