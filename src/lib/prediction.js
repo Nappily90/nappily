@@ -163,19 +163,26 @@ const SIZE_BANDS = {
 export function getSizeTransition(ageMonths, currentSize, fitStatus = 'not-sure') {
   const expectedSize = getExpectedSize(ageMonths);
 
-  // Safety guardrails
+  // Safety guardrails — stable if already at or above expected size
   if (currentSize >= 6 || currentSize >= expectedSize + 1) {
     return { state: 'STABLE', score: 0, expectedSize, suggestedSize: null };
   }
 
-  const sizeGap     = expectedSize - currentSize;
+  const sizeGap = expectedSize - currentSize;
+
+  // Only suggest sizing up when the gap is exactly 1.
+  // A gap of 2+ means the model is uncertain — don't show insight
+  // as sizing varies by brand and market (especially non-UK brands).
+  if (sizeGap >= 2) {
+    return { state: 'STABLE', score: 0, expectedSize, suggestedSize: null };
+  }
+
   const band        = SIZE_BANDS[Math.min(expectedSize, 6)];
   const ageIntoBand = ageMonths - band.startAge;
   const inBufferZone = ageIntoBand >= band.buffer;
 
   let score = 0;
   if (sizeGap >= 1)     score += 40;
-  if (sizeGap >= 2)     score += 60;
   if (ageIntoBand >= 0) score += 20;
   if (ageIntoBand >= 2) score += 30;
   if (inBufferZone)     score += 10;
@@ -407,4 +414,3 @@ export function calcPrediction(form) {
     },
   };
 }
-
