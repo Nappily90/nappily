@@ -71,6 +71,8 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
     daysLeft:        daysLeft,
     transitionState: transition.state,
   };
+
+  const transitionMsg = {
     STABLE:       'Current size looks right for now.',
     WATCH:        'You may need to size up soon.',
     SIZE_UP_SOON: `It's likely time to move to size ${transition.expectedSize + 1} for your next pack.`,
@@ -277,3 +279,4 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
     </div>
   );
 }
+
