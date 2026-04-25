@@ -169,7 +169,7 @@ function urgentEmailHtml(daysLeft, brand, size) {
 
 // ─── Send email via Resend ────────────────────────────────────
 
-async function sendEmail(to, subject, html) {
+async function sendEmail(to, subject, html, text) {
   if (!RESEND_API_KEY) {
     console.log('No RESEND_API_KEY — skipping email to', to);
     return;
@@ -182,10 +182,17 @@ async function sendEmail(to, subject, html) {
       'Content-Type':  'application/json',
     },
     body: JSON.stringify({
-      from:    FROM_EMAIL,
-      to:      [to],
+      from:       FROM_EMAIL,
+      to:         [to],
       subject,
       html,
+      text,   // plain text version — improves deliverability significantly
+      headers: {
+        // One-click unsubscribe — required by Gmail/Yahoo for bulk senders
+        'List-Unsubscribe':       '<https://nappily.app>',
+        'List-Unsubscribe-Post':  'List-Unsubscribe=One-Click',
+        'X-Entity-Ref-ID':        `nappily-reminder-${Date.now()}`,
+      },
     }),
   });
 
@@ -346,14 +353,18 @@ export const handler = async () => {
       // ── Email reminder ─────────────────────────────────────
       if (email) {
         const subject = isUrgent
-          ? `⚠️ Only ${daysLeft} day${daysLeft === 1 ? '' : 's'} of nappies left`
-          : `🧷 About ${daysLeft} days of nappies left`;
+          ? `You have about ${daysLeft} day${daysLeft === 1 ? '' : 's'} of nappies left`
+          : `Stock check — about ${daysLeft} days of nappies remaining`;
 
         const html = isUrgent
           ? urgentEmailHtml(daysLeft, brand, size)
           : softEmailHtml(daysLeft, brand, size);
 
-        await sendEmail(email, subject, html);
+        const text = isUrgent
+          ? `Hi, you have about ${daysLeft} day${daysLeft === 1 ? '' : 's'} of ${brand || 'nappies'} size ${size} left. Time to order now to avoid running out.\n\nOpen Nappily to see the best prices: https://nappily.app\n\nYou're receiving this because you enabled reminders on Nappily.`
+          : `Hi, you have about ${daysLeft} days of ${brand || 'nappies'} size ${size} left. A good time to restock soon.\n\nOpen Nappily to see the best prices: https://nappily.app\n\nYou're receiving this because you enabled reminders on Nappily.`;
+
+        await sendEmail(email, subject, html, text);
         results.emailSent++;
       }
     }
