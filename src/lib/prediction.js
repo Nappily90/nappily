@@ -112,12 +112,12 @@ export function getNurseryFactor(nursery, nurseryDays, nurseryProvides) {
 // ─────────────────────────────────────────────────────────────
 
 const EXPECTED_SIZE_TABLE = [
-  [1,        1],
-  [3,        2],
-  [6,        3],
-  [10,       4],
-  [14,       5],
-  [Infinity, 6],
+  [1,        1],   // 0–1 month
+  [3,        2],   // 1–3 months
+  [6,        3],   // 3–6 months
+  [9,        4],   // 6–9 months
+  [14,       5],   // 9–14 months
+  [Infinity, 6],   // 14+ months
 ];
 
 /**
