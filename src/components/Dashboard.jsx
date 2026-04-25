@@ -41,7 +41,7 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
     ['Nappies left',  String(form.stock)],
     ['Daily usage',   `${usage}/day`],
     ['Current size',  `Size ${form.size}`],
-    ['Next size',     transition.state !== 'STABLE' ? `Size ${transition.expectedSize + 1} soon` : 'Stable'],
+    ['Next size',     transition.suggestedSize ? `Size ${transition.suggestedSize} soon` : 'Stable'],
   ];
 
   return (
@@ -111,12 +111,12 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
           </div>
         )}
 
-        {transition.state !== 'STABLE' && (
+        {transition.state !== 'STABLE' && transition.suggestedSize && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4 mb-3">
             <p className="text-[13px] font-medium text-amber-400 mb-1">Size insight</p>
             <p className="text-[13px] text-cream-400">
               {transition.state === 'SIZE_UP_SOON'
-                ? `Time to try size ${transition.expectedSize + 1}`
+                ? `Time to try size ${transition.suggestedSize}`
                 : 'A size up may be coming soon'}
             </p>
           </div>
@@ -132,4 +132,3 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
     </div>
   );
 }
-
