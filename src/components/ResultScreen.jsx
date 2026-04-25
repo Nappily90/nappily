@@ -288,4 +288,3 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
     </div>
   );
 }
-
