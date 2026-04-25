@@ -23,8 +23,9 @@ function formToRow(userId, form) {
     stock:                    form.stock !== ''     ? Number(form.stock) : null,
     stock_updated_at:         new Date().toISOString(),
     // Reset reminder flags on every save so reminders fire again next cycle
-    reminder_soft_sent_at:   null,
-    reminder_urgent_sent_at: null,
+    reminder_soft_sent_at:    null,
+    reminder_urgent_sent_at:  null,
+    reminder_restock_sent_at: null,
     fit_status:               form.fitStatus        || null,
     impact:                   form.impact           || null,
     impact_set_at:            form.impactSetAt      || null,
