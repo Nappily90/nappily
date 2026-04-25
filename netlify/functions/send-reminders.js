@@ -85,7 +85,7 @@ function softEmailHtml(daysLeft, brand, size) {
           <tr>
             <td style="padding:32px 0 0;">
               <p style="margin:0 0 8px;font-size:12px;color:#7A7870;">
-                📬 If this email landed in spam, please mark it as safe so you don't miss future reminders.
+                If this email landed in spam, please mark it as safe so you don't miss future reminders.
               </p>
               <p style="margin:0;font-size:12px;color:#7A7870;">
                 You're receiving this because you enabled reminders on Nappily.<br/>
@@ -154,6 +154,9 @@ function urgentEmailHtml(daysLeft, brand, size) {
           </tr>
           <tr>
             <td style="padding:32px 0 0;">
+              <p style="margin:0 0 8px;font-size:12px;color:#7A7870;">
+                If this email landed in spam, please mark it as safe so you don't miss future reminders.
+              </p>
               <p style="margin:0;font-size:12px;color:#7A7870;">
                 You're receiving this because you enabled reminders on Nappily.<br/>
                 <a href="https://nappily.app" style="color:#7A7870;">Manage reminders</a>
