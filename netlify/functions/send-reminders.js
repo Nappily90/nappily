@@ -27,6 +27,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL     = 'Nappily <reminders@nappily.app>';
 const SOFT_DAYS      = 5;
 const URGENT_DAYS    = 3;
+const RESTOCK_DAYS   = 0; // Send restock nudge when estimated stock hits 0
 
 // ─── Email templates ──────────────────────────────────────────
 
@@ -159,6 +160,64 @@ function urgentEmailHtml(daysLeft, brand, size) {
             </td>
           </tr>
 
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function restockEmailHtml(brand, size) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Did you restock?</title>
+</head>
+<body style="margin:0;padding:0;background:#FAF9F7;font-family:'DM Sans',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF9F7;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+          <tr>
+            <td style="padding-bottom:32px;">
+              <span style="font-size:24px;font-weight:600;color:#1C1C1A;letter-spacing:-0.5px;">Napp<em style="color:#7A7870;">ily</em></span>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#fff;border-radius:20px;border:1px solid #EBEBEA;padding:32px;">
+              <p style="margin:0 0 8px;font-size:13px;color:#7A7870;text-transform:uppercase;letter-spacing:1px;">Quick check</p>
+              <h1 style="margin:0 0 16px;font-size:32px;color:#1C1C1A;font-weight:700;line-height:1.1;">
+                Did you restock?
+              </h1>
+              <p style="margin:0 0 24px;font-size:16px;color:#7A7870;line-height:1.6;">
+                Your ${brand || 'nappy'} supply looks like it may have run out. If you've bought more, update your stock in Nappily so we can keep your reminders accurate.
+              </p>
+              <a href="https://nappily.app"
+                 style="display:inline-block;background:#1C1C1A;color:#FAF9F7;text-decoration:none;
+                        padding:14px 28px;border-radius:50px;font-size:15px;font-weight:500;">
+                Update my stock →
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 0 0;">
+              <p style="margin:0;font-size:13px;color:#7A7870;line-height:1.6;">
+                Updating your stock keeps your reminders working and helps us give you a more accurate estimate.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 0 0;">
+              <p style="margin:0;font-size:12px;color:#7A7870;">
+                You're receiving this because you enabled reminders on Nappily.<br/>
+                <a href="https://nappily.app" style="color:#7A7870;">Manage reminders</a>
+              </p>
+            </td>
+          </tr>
         </table>
       </td>
     </tr>
@@ -325,31 +384,31 @@ export const handler = async () => {
       const daysLeft = calculateDaysLeft(profile);
       if (daysLeft === null) { results.skipped++; continue; }
 
-      const isSoft   = daysLeft > URGENT_DAYS && daysLeft <= SOFT_DAYS;
-      const isUrgent = daysLeft <= URGENT_DAYS;
+      const isSoft    = daysLeft > URGENT_DAYS && daysLeft <= SOFT_DAYS;
+      const isUrgent  = daysLeft > 0 && daysLeft <= URGENT_DAYS;
+      const isRestock = daysLeft <= 0;
 
-      if (!isSoft && !isUrgent) { results.skipped++; continue; }
+      if (!isSoft && !isUrgent && !isRestock) { results.skipped++; continue; }
 
       // ── Check if reminder already sent this stock cycle ────
-      // Stock cycle resets when user updates stock (stock_updated_at changes)
-      // We only send each reminder type ONCE per stock cycle
       const stockSetAt = profile.stock_updated_at
         ? new Date(profile.stock_updated_at)
         : new Date(0);
 
-      const softSentAt   = profile.reminder_soft_sent_at
-        ? new Date(profile.reminder_soft_sent_at)
-        : null;
-      const urgentSentAt = profile.reminder_urgent_sent_at
-        ? new Date(profile.reminder_urgent_sent_at)
-        : null;
+      const softSentAt    = profile.reminder_soft_sent_at
+        ? new Date(profile.reminder_soft_sent_at) : null;
+      const urgentSentAt  = profile.reminder_urgent_sent_at
+        ? new Date(profile.reminder_urgent_sent_at) : null;
+      const restockSentAt = profile.reminder_restock_sent_at
+        ? new Date(profile.reminder_restock_sent_at) : null;
 
-      // If reminder was already sent AFTER the last stock update → skip
-      const softAlreadySent   = softSentAt   && softSentAt   > stockSetAt;
-      const urgentAlreadySent = urgentSentAt && urgentSentAt > stockSetAt;
+      const softAlreadySent    = softSentAt    && softSentAt    > stockSetAt;
+      const urgentAlreadySent  = urgentSentAt  && urgentSentAt  > stockSetAt;
+      const restockAlreadySent = restockSentAt && restockSentAt > stockSetAt;
 
-      if (isSoft   && softAlreadySent)   { results.skipped++; continue; }
-      if (isUrgent && urgentAlreadySent) { results.skipped++; continue; }
+      if (isSoft    && softAlreadySent)    { results.skipped++; continue; }
+      if (isUrgent  && urgentAlreadySent)  { results.skipped++; continue; }
+      if (isRestock && restockAlreadySent) { results.skipped++; continue; }
 
       const now = new Date().toISOString();
 
@@ -358,7 +417,14 @@ export const handler = async () => {
 
       // ── Push notification ──────────────────────────────────
       if (sub) {
-        const pushPayload = isUrgent
+        const pushPayload = isRestock
+          ? {
+              title: 'Did you restock?',
+              body:  'Tap to update your stock and keep reminders accurate.',
+              tag:   'nappily-restock',
+              url:   'https://nappily.app',
+            }
+          : isUrgent
           ? {
               title: 'Almost out of nappies',
               body:  `${daysLeft} day${daysLeft === 1 ? '' : 's'} left — tap to order now.`,
@@ -390,26 +456,32 @@ export const handler = async () => {
 
       // ── Email reminder ─────────────────────────────────────
       if (email) {
-        const subject = isUrgent
+        const subject = isRestock
+          ? `Did you restock your ${brand || 'nappies'}?`
+          : isUrgent
           ? `You have about ${daysLeft} day${daysLeft === 1 ? '' : 's'} of nappies left`
           : `Stock check — about ${daysLeft} days of nappies remaining`;
 
-        const html = isUrgent
+        const html = isRestock
+          ? restockEmailHtml(brand, size)
+          : isUrgent
           ? urgentEmailHtml(daysLeft, brand, size)
           : softEmailHtml(daysLeft, brand, size);
 
-        const text = isUrgent
-          ? `Hi, you have about ${daysLeft} day${daysLeft === 1 ? '' : 's'} of ${brand || 'nappies'} size ${size} left. Time to order now to avoid running out.\n\nOpen Nappily to see the best prices: https://nappily.app\n\nYou're receiving this because you enabled reminders on Nappily.`
-          : `Hi, you have about ${daysLeft} days of ${brand || 'nappies'} size ${size} left. A good time to restock soon.\n\nOpen Nappily to see the best prices: https://nappily.app\n\nYou're receiving this because you enabled reminders on Nappily.`;
+        const text = isRestock
+          ? `Hi, your ${brand || 'nappy'} supply looks like it may have run out. If you've bought more, update your stock in Nappily so we can keep your reminders accurate.\n\nUpdate your stock: https://nappily.app`
+          : isUrgent
+          ? `Hi, you have about ${daysLeft} day${daysLeft === 1 ? '' : 's'} of ${brand || 'nappies'} size ${size} left. Time to order now.\n\nhttps://nappily.app`
+          : `Hi, you have about ${daysLeft} days of ${brand || 'nappies'} size ${size} left. A good time to restock soon.\n\nhttps://nappily.app`;
 
         await sendEmail(email, subject, html, text);
         results.emailSent++;
       }
 
-      // ── Mark reminder as sent in Supabase ─────────────────
-      // This prevents the same reminder from being sent again
-      // until the user updates their stock (which resets stock_updated_at)
-      const flagUpdate = isUrgent
+      // ── Mark reminder as sent ──────────────────────────────
+      const flagUpdate = isRestock
+        ? { reminder_restock_sent_at: now }
+        : isUrgent
         ? { reminder_urgent_sent_at: now }
         : { reminder_soft_sent_at: now };
 
@@ -418,7 +490,7 @@ export const handler = async () => {
         .update(flagUpdate)
         .eq('user_id', userId);
 
-      console.log(`Flagged ${isUrgent ? 'urgent' : 'soft'} reminder sent for user ${userId}`);
+      console.log(`Flagged ${isRestock ? 'restock' : isUrgent ? 'urgent' : 'soft'} reminder sent for user ${userId}`);
     }
 
     console.log('Results:', results);
