@@ -121,7 +121,7 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
       <div className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto px-5 pb-8 pt-5 bg-gradient-to-t from-[#FAF9F7] via-[#FAF9F7] to-transparent">
         <div className="flex flex-col gap-3">
           <button className="btn-primary" onClick={onUpdateStock}>Update my stock</button>
-          <button className="btn-secondary" onClick={onViewResult}>See full estimate & buy</button>
+          <button className="btn-secondary" onClick={onViewResult}>Buy now</button>
         </div>
       </div>
     </div>
