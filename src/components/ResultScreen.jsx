@@ -63,13 +63,19 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
   const { deals, loading: dealsLoading, error: dealsError, source } = useDeals(brandName, selectedSize);
 
   const feedbackContext = {
-    ageMonths:       form.ageMonths,
-    size:            form.size,
-    brand:           brandName,
-    stock:           form.stock,
-    dailyUsage:      usage,
-    daysLeft:        daysLeft,
-    transitionState: transition.state,
+    ageMonths:        form.ageMonths,
+    size:             form.size,
+    brand:            brandName,
+    stock:            form.stock,
+    dailyUsage:       usage,
+    daysLeft:         daysLeft,
+    transitionState:  transition.state,
+    nursery:          form.nursery          ?? false,
+    nurseryDays:      form.nurseryDays      || 0,
+    nurseryProvides:  form.nurseryProvides  ?? false,
+    fitStatus:        form.fitStatus        || null,
+    impact:           form.impact           || null,
+    impactActive:     impactActive          ?? false,
   };
 
   const transitionMsg = {
