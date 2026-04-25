@@ -7,19 +7,19 @@ const REASONS = [
   { value: 'size',  label: 'We may need the next size soon' },
 ];
 
-export default function FeedbackModal({ onClose, userId }) {
+export default function FeedbackModal({ onClose, userId, context }) {
   const [sent,    setSent]    = useState(false);
   const [saving,  setSaving]  = useState(false);
 
   async function handleReason(reason) {
     setSaving(true);
-    await saveFeedback(userId, 'no', reason);
+    await saveFeedback(userId, 'no', reason, context);
     setSaving(false);
     setSent(true);
   }
 
   async function handlePositive() {
-    await saveFeedback(userId, 'yes', null);
+    await saveFeedback(userId, 'yes', null, context);
     onClose();
   }
 
