@@ -45,15 +45,11 @@ function softEmailHtml(daysLeft, brand, size) {
     <tr>
       <td align="center">
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
-          
-          <!-- Logo -->
           <tr>
             <td style="padding-bottom:32px;">
               <span style="font-size:24px;font-weight:600;color:#1C1C1A;letter-spacing:-0.5px;">Napp<em style="color:#7A7870;">ily</em></span>
             </td>
           </tr>
-
-          <!-- Hero card -->
           <tr>
             <td style="background:#fff;border-radius:20px;border:1px solid #EBEBEA;padding:32px;">
               <p style="margin:0 0 8px;font-size:13px;color:#7A7870;text-transform:uppercase;letter-spacing:1px;">Nappy reminder</p>
@@ -64,34 +60,36 @@ function softEmailHtml(daysLeft, brand, size) {
                 You're getting low on ${brand ? brand + ' size ' + size : 'nappies'}. 
                 A good time to restock before you run out.
               </p>
-              <a href="https://nappily.app" 
-                 style="display:inline-block;background:#1C1C1A;color:#FAF9F7;text-decoration:none;
-                        padding:14px 28px;border-radius:50px;font-size:15px;font-weight:500;">
-                Update my stock
-              </a>
+              <!-- Two action buttons -->
+              <table cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td style="padding-right:8px;">
+                    <a href="https://nappily.app"
+                       style="display:block;text-align:center;background:#1C1C1A;color:#FAF9F7;text-decoration:none;
+                              padding:14px 20px;border-radius:50px;font-size:14px;font-weight:500;">
+                      See best prices
+                    </a>
+                  </td>
+                  <td style="padding-left:8px;">
+                    <a href="https://nappily.app"
+                       style="display:block;text-align:center;background:#FAF9F7;color:#1C1C1A;text-decoration:none;
+                              padding:13px 20px;border-radius:50px;font-size:14px;font-weight:500;
+                              border:1.5px solid #D5D2CB;">
+                      Update my stock
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
-
-          <!-- Tip -->
           <tr>
-            <td style="padding:24px 0 0;">
-              <p style="margin:0;font-size:13px;color:#7A7870;line-height:1.6;">
-                💡 Tip: Order now and you'll arrive before you run out. 
-                Check today's best prices at <a href="https://nappily.app" style="color:#1C1C1A;">nappily.app</a>
-              </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding:32px 0 0;border-top:1px solid #EBEBEA;margin-top:24px;">
+            <td style="padding:32px 0 0;">
               <p style="margin:0;font-size:12px;color:#7A7870;">
                 You're receiving this because you enabled reminders on Nappily.<br/>
                 <a href="https://nappily.app" style="color:#7A7870;">Manage reminders</a>
               </p>
             </td>
           </tr>
-
         </table>
       </td>
     </tr>
@@ -114,18 +112,14 @@ function urgentEmailHtml(daysLeft, brand, size) {
     <tr>
       <td align="center">
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
-          
-          <!-- Logo -->
           <tr>
             <td style="padding-bottom:32px;">
               <span style="font-size:24px;font-weight:600;color:#1C1C1A;letter-spacing:-0.5px;">Napp<em style="color:#7A7870;">ily</em></span>
             </td>
           </tr>
-
-          <!-- Urgent card -->
           <tr>
-            <td style="background:#FDECEA;border-radius:20px;border:1px solid #FDECEA;padding:32px;">
-              <p style="margin:0 0 8px;font-size:13px;color:#A33030;text-transform:uppercase;letter-spacing:1px;">⚠️ Running very low</p>
+            <td style="background:#FDECEA;border-radius:20px;padding:32px;">
+              <p style="margin:0 0 8px;font-size:13px;color:#A33030;text-transform:uppercase;letter-spacing:1px;">Running very low</p>
               <h1 style="margin:0 0 16px;font-size:36px;color:#1C1C1A;font-weight:700;line-height:1.1;">
                 Only ${daysLeft} day${daysLeft === 1 ? '' : 's'} left
               </h1>
@@ -133,24 +127,28 @@ function urgentEmailHtml(daysLeft, brand, size) {
                 You're almost out of ${brand ? brand + ' size ' + size : 'nappies'}. 
                 Order now to avoid running out.
               </p>
-              <a href="https://nappily.app"
-                 style="display:inline-block;background:#1C1C1A;color:#FAF9F7;text-decoration:none;
-                        padding:14px 28px;border-radius:50px;font-size:15px;font-weight:500;">
-                Order now →
-              </a>
+              <!-- Two action buttons -->
+              <table cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td style="padding-right:8px;">
+                    <a href="https://nappily.app"
+                       style="display:block;text-align:center;background:#1C1C1A;color:#FAF9F7;text-decoration:none;
+                              padding:14px 20px;border-radius:50px;font-size:14px;font-weight:500;">
+                      Order now →
+                    </a>
+                  </td>
+                  <td style="padding-left:8px;">
+                    <a href="https://nappily.app"
+                       style="display:block;text-align:center;background:#FDECEA;color:#1C1C1A;text-decoration:none;
+                              padding:13px 20px;border-radius:50px;font-size:14px;font-weight:500;
+                              border:1.5px solid #A33030;">
+                      Update my stock
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
-
-          <!-- Best deals nudge -->
-          <tr>
-            <td style="padding:24px 0 0;">
-              <p style="margin:0;font-size:13px;color:#7A7870;line-height:1.6;">
-                Open Nappily to see today's best prices across Amazon, Boots, Asda and more.
-              </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
           <tr>
             <td style="padding:32px 0 0;">
               <p style="margin:0;font-size:12px;color:#7A7870;">
@@ -159,7 +157,6 @@ function urgentEmailHtml(daysLeft, brand, size) {
               </p>
             </td>
           </tr>
-
         </table>
       </td>
     </tr>
@@ -427,13 +424,13 @@ export const handler = async () => {
           : isUrgent
           ? {
               title: 'Almost out of nappies',
-              body:  `${daysLeft} day${daysLeft === 1 ? '' : 's'} left — tap to order now.`,
+              body:  `${daysLeft} day${daysLeft === 1 ? '' : 's'} left — order now or update your stock.`,
               tag:   'nappily-urgent',
               url:   'https://nappily.app',
             }
           : {
               title: 'Nappy check',
-              body:  `About ${daysLeft} days left. Good time to restock.`,
+              body:  `About ${daysLeft} days left. Restock soon or update your stock.`,
               tag:   'nappily-soft',
               url:   'https://nappily.app',
             };
