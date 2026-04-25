@@ -119,6 +119,9 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
               If you notice leaks or a tighter fit, it may be time to size up.
             </p>
           )}
+          <p className="text-[12px] text-cream-300 mt-2">
+            Sizes vary by brand — use this as a guide only.
+          </p>
         </div>
       )}
 
