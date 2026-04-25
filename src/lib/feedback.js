@@ -1,30 +1,31 @@
 /**
  * lib/feedback.js
  * ─────────────────────────────────────────────────────────────
- * Saves user feedback to Supabase with full prediction context.
- * Each submission is a new row — nothing is overwritten.
+ * Saves user feedback with full prediction context snapshot.
+ * Every submission is a new row — nothing is overwritten.
  */
 import { supabase } from './supabase';
 
-/**
- * @param {string} userId
- * @param {'yes'|'no'} accuracy
- * @param {string|null} reason      - 'fewer' | 'more' | 'size' | null
- * @param {object|null} context     - prediction snapshot at time of feedback
- */
 export async function saveFeedback(userId, accuracy, reason = null, context = null) {
   const row = {
     user_id:          userId,
     accuracy,
     reason,
-    // Snapshot of prediction at time of feedback
-    age_months:       context?.ageMonths       || null,
-    size:             context?.size            || null,
-    brand:            context?.brand           || null,
-    stock:            context?.stock           || null,
-    daily_usage:      context?.dailyUsage      || null,
-    days_left:        context?.daysLeft        || null,
-    transition_state: context?.transitionState || null,
+    // Prediction snapshot
+    age_months:       context?.ageMonths       ?? null,
+    size:             context?.size            ?? null,
+    brand:            context?.brand           ?? null,
+    stock:            context?.stock           ?? null,
+    daily_usage:      context?.dailyUsage      ?? null,
+    days_left:        context?.daysLeft        ?? null,
+    transition_state: context?.transitionState ?? null,
+    // Factors affecting usage
+    nursery:          context?.nursery         ?? null,
+    nursery_days:     context?.nurseryDays     ?? null,
+    nursery_provides: context?.nurseryProvides ?? null,
+    fit_status:       context?.fitStatus       ?? null,
+    impact:           context?.impact          ?? null,
+    impact_active:    context?.impactActive    ?? null,
   };
 
   const { error } = await supabase
