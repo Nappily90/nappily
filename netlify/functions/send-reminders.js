@@ -352,8 +352,13 @@ export const handler = async () => {
         try {
           await webpush.sendNotification(JSON.parse(sub.subscription), JSON.stringify(pushPayload));
           results.pushSent++;
+          console.log('Push sent successfully to user:', userId);
         } catch (pushErr) {
-          if (pushErr.statusCode === 410) {
+          console.error('Push error for user', userId, ':',
+            pushErr.statusCode, pushErr.body || pushErr.message);
+          if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
+            // Subscription expired or invalid — remove it
+            console.log('Removing expired subscription for user:', userId);
             await supabase.from('push_subscriptions').delete().eq('user_id', userId);
           }
           results.errors++;
