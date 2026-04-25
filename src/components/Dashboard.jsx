@@ -41,7 +41,7 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
     ['Nappies left',  String(form.stock)],
     ['Daily usage',   `${usage}/day`],
     ['Current size',  `Size ${form.size}`],
-    ['Next size',     transition.suggestedSize ? `Size ${transition.suggestedSize} soon` : 'Stable'],
+    ['Next size',     transition.suggestedSize ? `Size ${transition.suggestedSize} soon` : '—'],
   ];
 
   return (
