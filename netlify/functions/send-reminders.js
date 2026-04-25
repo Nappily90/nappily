@@ -336,8 +336,18 @@ export const handler = async () => {
       // ── Push notification ──────────────────────────────────
       if (sub) {
         const pushPayload = isUrgent
-          ? { title: '🚨 Almost out of nappies', body: `Only ${daysLeft} day${daysLeft === 1 ? '' : 's'} left — order now.`, tag: 'nappily-urgent' }
-          : { title: '🧷 Nappy reminder',         body: `About ${daysLeft} days left — good time to restock.`,               tag: 'nappily-soft'   };
+          ? {
+              title: 'Almost out of nappies',
+              body:  `${daysLeft} day${daysLeft === 1 ? '' : 's'} left — tap to order now.`,
+              tag:   'nappily-urgent',
+              url:   'https://nappily.app',
+            }
+          : {
+              title: 'Nappy check',
+              body:  `About ${daysLeft} days left. Good time to restock.`,
+              tag:   'nappily-soft',
+              url:   'https://nappily.app',
+            };
 
         try {
           await webpush.sendNotification(JSON.parse(sub.subscription), JSON.stringify(pushPayload));
