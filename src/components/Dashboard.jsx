@@ -75,18 +75,23 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
         )}
 
         {isGranted && (
-          <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-cream-100 mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-green-400 text-sm">✓</span>
-              <p className="text-[13px] text-cream-500">Reminders on — 5 and 3 days before.</p>
+          <div className="px-4 py-3 rounded-2xl bg-cream-100 mb-3">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <span className="text-green-400 text-sm">✓</span>
+                <p className="text-[13px] text-cream-500">Reminders on — 5 and 3 days before.</p>
+              </div>
+              <button
+                onClick={requestPermission}
+                disabled={subscribing}
+                className="text-[12px] text-cream-400 underline underline-offset-2 hover:text-cream-600"
+              >
+                {subscribing ? 'Saving...' : 'Refresh'}
+              </button>
             </div>
-            <button
-              onClick={requestPermission}
-              disabled={subscribing}
-              className="text-[12px] text-cream-400 underline underline-offset-2 hover:text-cream-600"
-            >
-              {subscribing ? 'Saving...' : 'Refresh'}
-            </button>
+            <p className="text-[12px] text-cream-400 leading-relaxed">
+              📬 Check your spam folder if you don't see our emails — mark us as safe to ensure delivery.
+            </p>
           </div>
         )}
 
@@ -127,3 +132,4 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
     </div>
   );
 }
+
