@@ -23,9 +23,9 @@ export async function resetPassword(email) {
   });
 }
 
-/** Sign out the current user. */
+/** Sign out the current user — local scope only to avoid 403 errors. */
 export async function signOut() {
-  return supabase.auth.signOut();
+  return supabase.auth.signOut({ scope: 'local' });
 }
 
 /** Get the current session synchronously from local storage. */
