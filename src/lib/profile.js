@@ -11,22 +11,25 @@ import { supabase } from './supabase';
 
 function formToRow(userId, form) {
   return {
-    user_id:          userId,
-    dob:              form.dob              || null,
-    age_months:       form.ageMonths !== '' ? Number(form.ageMonths) : null,
-    brand:            form.brand            || null,
-    other_brand:      form.otherBrand       || null,
-    size:             form.size             || null,
-    nursery:          form.nursery          ?? false,
-    nursery_days:     form.nurseryDays      || 0,
-    nursery_provides: form.nurseryProvides  ?? false,
-    stock:            form.stock !== ''     ? Number(form.stock) : null,
-    stock_updated_at: new Date().toISOString(), // stamped every save
-    fit_status:       form.fitStatus        || null,
-    impact:           form.impact           || null,
-    impact_set_at:    form.impactSetAt      || null,
-    stock_updates:    form.stockUpdates     || 0,
-    has_fit_feedback: form.hasFitFeedback   ?? false,
+    user_id:                  userId,
+    dob:                      form.dob              || null,
+    age_months:               form.ageMonths !== '' ? Number(form.ageMonths) : null,
+    brand:                    form.brand            || null,
+    other_brand:              form.otherBrand       || null,
+    size:                     form.size             || null,
+    nursery:                  form.nursery          ?? false,
+    nursery_days:             form.nurseryDays      || 0,
+    nursery_provides:         form.nurseryProvides  ?? false,
+    stock:                    form.stock !== ''     ? Number(form.stock) : null,
+    stock_updated_at:         new Date().toISOString(),
+    // Reset reminder flags on every save so reminders fire again next cycle
+    reminder_soft_sent_at:   null,
+    reminder_urgent_sent_at: null,
+    fit_status:               form.fitStatus        || null,
+    impact:                   form.impact           || null,
+    impact_set_at:            form.impactSetAt      || null,
+    stock_updates:            form.stockUpdates     || 0,
+    has_fit_feedback:         form.hasFitFeedback   ?? false,
   };
 }
 
