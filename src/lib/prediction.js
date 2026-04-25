@@ -170,10 +170,10 @@ export function getSizeTransition(ageMonths, currentSize, fitStatus = 'not-sure'
 
   const sizeGap = expectedSize - currentSize;
 
-  // Only suggest sizing up when the gap is exactly 1.
-  // A gap of 2+ means the model is uncertain — don't show insight
-  // as sizing varies by brand and market (especially non-UK brands).
-  if (sizeGap >= 2) {
+  // Only suggest sizing up when gap is exactly 1.
+  // Gap of 0 = already on expected size → stable
+  // Gap of 2+ = too uncertain → stable
+  if (sizeGap !== 1) {
     return { state: 'STABLE', score: 0, expectedSize, suggestedSize: null };
   }
 
