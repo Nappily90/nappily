@@ -81,7 +81,7 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
   const transitionMsg = {
     STABLE:       'Current size looks right for now.',
     WATCH:        'You may need to size up soon.',
-    SIZE_UP_SOON: `It's likely time to move to size ${transition.expectedSize + 1} for your next pack.`,
+    SIZE_UP_SOON: `It's likely time to move to size ${transition.suggestedSize} for your next pack.`,
   }[transition.state];
 
   const detailRows = [
@@ -115,7 +115,7 @@ export default function ResultScreen({ form, pred, onUpdateStock, onDashboard, o
           <p className="text-[15px] leading-relaxed mb-2">{transitionMsg}</p>
           {transition.state === 'SIZE_UP_SOON' && (
             <p className="text-[13px] text-cream-400 leading-relaxed">
-              Most babies around this age start moving to size {transition.expectedSize + 1}.
+              Most babies around this age start moving to size {transition.suggestedSize}.
               If you notice leaks or a tighter fit, it may be time to size up.
             </p>
           )}
