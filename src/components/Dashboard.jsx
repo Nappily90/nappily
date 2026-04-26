@@ -37,12 +37,30 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
 
   const { usage, daysLeft, transition, reminder } = pred;
 
+  // Human-friendly headline
+  const headline = daysLeft <= 0
+    ? "You may have run out"
+    : daysLeft === 1
+    ? "You're good for about 1 more day"
+    : `You're good for about ${daysLeft} days`;
+
+  // Softer urgency label
+  const urgencyNote = reminder.level === 'urgent'
+    ? "You're getting low — worth topping up soon"
+    : reminder.level === 'soft'
+    ? "Starting to get low — keep an eye on this"
+    : null;
+
   const stats = [
-    ['Nappies left',  String(form.stock)],
-    ['Daily usage',   `${usage}/day`],
-    ['Current size',  `Size ${form.size}`],
-    ['Next size',     transition.suggestedSize ? `Size ${transition.suggestedSize} soon` : '—'],
+    ['About this many left',  `${form.stock} nappies`],
+    ['Using size',            `Size ${form.size}`],
+    ['Next size',             transition.suggestedSize ? `Size ${transition.suggestedSize} coming soon` : '—'],
   ];
+
+  // Size insight copy — softer
+  const sizeInsightMsg = transition.state === 'SIZE_UP_SOON'
+    ? `Might be time to try size ${transition.suggestedSize}`
+    : `Keep an eye on size ${transition.suggestedSize} soon`;
 
   return (
     <div style={{ paddingBottom: '160px' }}>
@@ -59,12 +77,16 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
       </div>
 
       <div className="px-5">
-        <p className="text-cream-400 text-[13px] mb-1">Your plan</p>
-        <h2 className="font-serif text-[36px] leading-[1.1] mb-6">
-          You'll run out in about {daysLeft} days
+        <p className="text-cream-400 text-[13px] mb-1">Your nappy plan</p>
+        <h2 className="font-serif text-[34px] leading-[1.1] mb-3">
+          {headline}
         </h2>
 
-        <UrgencyBar label={reminder.label} level={reminder.level} />
+        {urgencyNote && (
+          <p className="text-[14px] text-amber-400 mb-5 leading-relaxed">{urgencyNote}</p>
+        )}
+
+        {!urgencyNote && <div className="mb-5" />}
 
         {showPrompt && (
           <NotificationPrompt
@@ -90,14 +112,14 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
               </button>
             </div>
             <p className="text-[12px] text-cream-400 leading-relaxed">
-              📬 Check your spam folder if you don't see our emails — mark us as safe to ensure delivery.
+              Check your spam folder if you don't see our emails — mark us as safe to ensure delivery.
             </p>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-3 mb-4">
           {stats.map(([label, value]) => (
-            <div key={label} className="bg-white rounded-2xl border border-cream-200 px-4 py-4">
+            <div key={label} className={`bg-white rounded-2xl border border-cream-200 px-4 py-4 ${label === 'About this many left' ? 'col-span-2' : ''}`}>
               <p className="text-[12px] text-cream-400 mb-1.5">{label}</p>
               <p className="text-[18px] font-medium leading-none">{value}</p>
             </div>
@@ -113,20 +135,16 @@ export default function Dashboard({ form, pred, onUpdateStock, onViewResult, onE
 
         {transition.state !== 'STABLE' && transition.suggestedSize && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4 mb-3">
-            <p className="text-[13px] font-medium text-amber-400 mb-1">Size insight</p>
-            <p className="text-[13px] text-cream-400">
-              {transition.state === 'SIZE_UP_SOON'
-                ? `Time to try size ${transition.suggestedSize}`
-                : 'A size up may be coming soon'}
-            </p>
+            <p className="text-[13px] font-medium text-amber-400 mb-1">Size</p>
+            <p className="text-[13px] text-cream-400">{sizeInsightMsg}</p>
           </div>
         )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto px-5 pb-8 pt-5 bg-gradient-to-t from-[#FAF9F7] via-[#FAF9F7] to-transparent">
         <div className="flex flex-col gap-3">
-          <button className="btn-primary" onClick={onUpdateStock}>Update my stock</button>
-          <button className="btn-secondary" onClick={onViewResult}>Buy now</button>
+          <button className="btn-primary" onClick={onUpdateStock}>I've used some nappies</button>
+          <button className="btn-secondary" onClick={onViewResult}>Show me more</button>
         </div>
       </div>
     </div>
